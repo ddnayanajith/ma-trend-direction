@@ -1,0 +1,97 @@
+//@version=6
+// © 2026 Damitha Nayanajith.
+indicator("MA Trend Direction", overlay = true)
+
+// --------------------
+// Inputs
+// --------------------
+maPeriod = input.int(14, "MA Period", minval = 1)
+maType   = input.string("SMA", "MA Type", options = ["SMA", "EMA", "WMA", "VWMA"])
+
+// Master toggle
+enableIndicator = input.bool(true, "Enable Multi-Timeframe Arrows")
+
+// Individual timeframe toggles
+show1m  = input.bool(true, "Show 1m")
+show5m  = input.bool(true, "Show 5m")
+show15m = input.bool(true, "Show 15m")
+show1h  = input.bool(true, "Show 1h")
+show4h  = input.bool(true, "Show 4h")
+show1d  = input.bool(true, "Show 1D") 
+
+textSizeInput = input.string("Normal", "Text Size", options = ["Tiny", "Small", "Normal", "Large"])
+
+// --------------------
+// Moving Average
+// --------------------
+f_ma(src) =>
+    switch maType
+        "EMA"  => ta.ema(src, maPeriod)
+        "WMA"  => ta.wma(src, maPeriod)
+        "VWMA" => ta.vwma(src, maPeriod)
+        => ta.sma(src, maPeriod)
+
+// --------------------
+// Trend logic
+// --------------------
+f_trend(tf) =>
+    c = request.security(syminfo.tickerid, tf, close)
+    m = request.security(syminfo.tickerid, tf, f_ma(close))
+    c > m ? 1 : c < m ? -1 : 0
+
+// --------------------
+// Helpers
+// --------------------
+f_arrow(v) => v == 1 ? "↑" : v == -1 ? "↓" : "·"
+f_color(v) => v == 1 ? color.lime : v == -1 ? color.red : color.gray
+
+txtSize = switch textSizeInput
+    "Tiny"   => size.tiny
+    "Small"  => size.small
+    "Large"  => size.large
+    => size.normal
+
+// --------------------
+// Trends
+// --------------------
+t1m  = enableIndicator and show1m  ? f_trend("1")     : na
+t5m  = enableIndicator and show5m  ? f_trend("5")     : na
+t15m = enableIndicator and show15m ? f_trend("15")    : na
+t1h  = enableIndicator and show1h  ? f_trend("60")    : na
+t4h  = enableIndicator and show4h  ? f_trend("240")   : na
+t1d  = enableIndicator and show1d  ? f_trend("D")     : na   // 1-day trend
+
+// --------------------
+// Table (safe recreation)
+// --------------------
+var table tbl = na
+
+if barstate.islast
+    if not na(tbl)
+        table.delete(tbl)
+
+    tbl := table.new(position.bottom_right, 1, 8, frame_color = color.new(color.gray, 80))  // increased rows
+
+    row = 0
+    if enableIndicator and show1m
+        table.cell(tbl, 0, row, f_arrow(t1m) + " 1m", text_color = f_color(t1m), text_size = txtSize)
+        row += 1
+
+    if enableIndicator and show5m
+        table.cell(tbl, 0, row, f_arrow(t5m) + " 5m", text_color = f_color(t5m), text_size = txtSize)
+        row += 1
+
+    if enableIndicator and show15m
+        table.cell(tbl, 0, row, f_arrow(t15m) + " 15m", text_color = f_color(t15m), text_size = txtSize)
+        row += 1
+
+    if enableIndicator and show1h
+        table.cell(tbl, 0, row, f_arrow(t1h) + " 1h", text_color = f_color(t1h), text_size = txtSize)
+        row += 1
+
+    if enableIndicator and show4h
+        table.cell(tbl, 0, row, f_arrow(t4h) + " 4h", text_color = f_color(t4h), text_size = txtSize)
+        row += 1
+
+    if enableIndicator and show1d
+        table.cell(tbl, 0, row, f_arrow(t1d) + " 1D", text_color = f_color(t1d), text_size = txtSize)
